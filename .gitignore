@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+instance/
+
+# Node.js
+node_modules/
+dist/
+
+# IDEs and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local database files and backups
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+!database/*.sql.example
+*.dump
+*.backup
+
+# Logs
+*.log
