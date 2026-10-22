@@ -1,70 +1,117 @@
 # TaskFlow — Containerized Task Management Application
 
-TaskFlow is a full-stack task management application built to demonstrate
-containerization, service communication, database persistence, testing,
-and practical DevOps deployment workflows.
+TaskFlow is a full-stack task management application built to demonstrate containerization, REST API development, database persistence, automated testing, and Kubernetes deployment workflows.
 
-## Features
+The application supports task creation, listing, completion, and deletion. It runs locally using Docker Compose and can also be deployed to a local Kubernetes cluster using kind.
 
-- Create, list, complete, and delete tasks.
-- React frontend served by Nginx.
-- Flask REST API using SQLAlchemy.
-- PostgreSQL relational database.
-- Docker Compose orchestration.
-- Container health checks and startup dependencies.
-- Persistent PostgreSQL storage using a named Docker volume.
-- Automated backend tests with pytest.
+## 📋 Table of Contents
+1. [Features](#-features)
+2. [Architecture](#-architecture)
+3. [Technology Stack](#-technology-stack)
+4. [Repository Structure](#-repository-structure)
+5. [Prerequisites](#-prerequisites)
+6. [Run with Docker Compose](#-run-with-docker-compose)
+7. [Deploy to Kubernetes with kind](#-deploy-to-kubernetes-with-kind)
+8. [Verify the Application](#-verify-the-application)
+9. [Database Persistence and Backups](#-database-persistence-and-backups)
+10. [Testing](#-testing)
+11. [Troubleshooting](#-troubleshooting)
+12. [Security](#-security)
+13. [Roadmap](#-roadmap)
+14. [License](#-license)
 
-## Architecture
+---
 
+## ✨ Features
+
+* **Task Operations:** Create, list, complete, and delete tasks seamlessly.
+* **Modern Frontend:** React frontend built with Vite and served by Nginx.
+* **Robust Backend:** Flask REST API using SQLAlchemy ORM and running on Gunicorn.
+* **Relational Database:** PostgreSQL 16 relational database engine.
+* **Orchestration:** Local setup via Docker Compose and native Kubernetes deployment via `kind`.
+* **Resiliency:** Persistent PostgreSQL storage, health checks, and explicit resource configurations.
+* **Reverse Proxy:** Nginx reverse proxy configurations handling all API incoming requests.
+* **Automated Quality:** Backend automated test coverage built with `pytest`.
+* **Declarative Deployments:** Structured Kubernetes manifests customized via Kustomize.
+
+---
+
+## 🏗️ Architecture
+
+### Docker Compose Diagram
 ```text
 Browser
-   |
-   | http://localhost:8081
-   v
-React application served by Nginx
-   |
-   | /api/* reverse proxy
-   v
-Flask API + Gunicorn
-   |
-   | PostgreSQL connection
-   v
+   │
+   │ http://localhost:8081
+   ▼
+React Frontend served by Nginx
+   │
+   │ /api/* reverse proxy
+   ▼
+Flask REST API + Gunicorn
+   │
+   │ SQLAlchemy / PostgreSQL driver
+   ▼
 PostgreSQL 16
-   |
-   v
+   │
+   ▼
 Docker named volume: taskflow_pgdata
 ```
+The browser accesses the frontend through Nginx. Nginx forwards `/api/` requests to the backend over the internal Docker Compose network. PostgreSQL is isolated and not published on a host port by default.
 
-The browser communicates with Nginx. Nginx forwards `/api/` requests to
-the backend using the internal Docker Compose network. PostgreSQL is not
-published on a host port by the Compose configuration.
+### Kubernetes with kind Diagram
+```text
+Browser
+   │
+   │ http://localhost:8082 (via kubectl port-forward)
+   ▼
+Frontend Service
+   │
+   ▼
+Frontend Pod: React + Nginx
+   │
+   │ /api/* reverse proxy
+   ▼
+Backend Service
+   │
+   ▼
+Backend Pod: Flask + Gunicorn
+   │
+   ▼
+PostgreSQL Service
+   │
+   ▼
+PostgreSQL StatefulSet
+   │
+   ▼
+PersistentVolumeClaim
+```
+The Kubernetes resources are deployed in the isolated `taskflow` namespace. The frontend and backend communicate through Kubernetes Services. PostgreSQL runs as a StatefulSet with persistent storage. 
 
-## Technology stack
+---
+
+## 🛠️ Technology Stack
 
 | Layer | Technology |
-|---|---|
-| Frontend | React, Vite |
-| Web server / reverse proxy | Nginx |
-| Backend | Python, Flask, SQLAlchemy |
-| Application server | Gunicorn |
-| Database | PostgreSQL 16 |
-| Containers | Docker |
-| Orchestration | Docker Compose |
-| Backend tests | pytest |
+| :--- | :--- |
+| **Frontend** | React, Vite |
+| **Web server and reverse proxy** | Nginx |
+| **Backend** | Python, Flask |
+| **Application server** | Gunicorn |
+| **ORM** | SQLAlchemy |
+| **Database** | PostgreSQL 16 |
+| **Backend testing** | pytest |
+| **Containers** | Docker |
+| **Local orchestration** | Docker Compose |
+| **Kubernetes** | Kubernetes with kind |
+| **Kubernetes configuration** | YAML manifests and Kustomize |
+| **CI/CD (Planned)** | GitHub Actions |
+| **Container registry (Planned)** | GitHub Container Registry |
+| **GitOps (Planned)** | Argo CD |
 
-## Prerequisites
+---
 
-Install:
-
-- Docker Engine or Docker Desktop with Linux containers enabled.
-- Docker Compose v2 (`docker compose`).
-- Git.
-
-Node.js and Python are needed for local development, but not to run the
-complete application through Docker Compose.
-
-## Repository structure
+## 📁 Repository Structure
 
 ```text
 taskflow/
@@ -74,271 +121,350 @@ taskflow/
 │   ├── test_app.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   └── .dockerignore
+│   └── wait_for_db.py
 ├── frontend/
 │   ├── src/
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── Dockerfile
-│   ├── nginx.conf
-│   └── .dockerignore
+│   └── nginx.conf
 ├── database/
 │   └── README.md
-├── docker-compose.yaml
+├── k8s/
+│   ├── backend/
+│   │   ├── deployment.yaml
+│   │   └── service.yaml
+│   ├── database/
+│   │   ├── secret.yaml
+│   │   ├── service.yaml
+│   │   └── statefulset.yaml
+│   ├── frontend/
+│   │   ├── deployment.yaml
+│   │   └── service.yaml
+│   ├── kind-config.yaml
+│   ├── kustomization.yaml
+│   └── namespace.yaml
+├── docker-compose.yml
 ├── .gitignore
 └── README.md
 ```
 
-## Run with Docker Compose
+> ⚠️ **Important:** `Notes.md` is intentionally omitted because it contains personal notes. Keep it out of the public repository to avoid leakages.
+> 
+> 🔒 **Notice:** The `k8s/database/secret.yaml` entry represents a local development configuration file. Do not commit it if it contains valid plain text or base64 credentials.
 
-Clone the repository and enter its directory:
+---
 
+## 🛑 Prerequisites
+
+### For Docker Compose
+* Docker Engine or Docker Desktop with Linux containers enabled.
+* Docker Compose v2.
+* Git.
+
+### For Kubernetes with kind
+* Docker Engine or Docker Desktop.
+* kind CLI installed.
+* kubectl CLI installed.
+* Cloned TaskFlow source code.
+
+> **Note:** Node.js and Python are required for local bare-metal development and testing, but they are **not** required on the host computer to run the application using its container images.
+
+---
+
+## 🐳 Run with Docker Compose
+
+Run the following commands from the project root directory.
+
+### 1. Build and start the application
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd taskflow
+docker compose -f docker-compose.yml up --build -d
+```
+*(If your file is named `docker-compose.yaml`, substitute that filename instead).*
+
+### 2. Check service status
+```bash
+docker compose -f docker-compose.yml ps
+```
+**Expected services:**
+* `frontend`: Serves the web application on host port `8081`. (Port `8081` avoids conflicts with services using `8080`).
+* `backend`: Provides the Flask REST API on the internal Compose network.
+* `db`: Runs the PostgreSQL 16 container.
+
+### 3. Open the application
+Visit your browser at: [http://localhost:8081](http://localhost:8081)
+
+### 4. Stop the application
+```bash
+docker compose -f docker-compose.yml down
+```
+> ❗ **Warning:** Avoid appending `-v` (`docker compose down -v`) when you need to preserve your database data. The `-v` option permanently deletes Compose-managed named volumes.
+
+---
+
+## ☸️ Deploy to Kubernetes with kind
+
+Run these commands from the project root directory.
+
+### 1. Create the kind cluster
+If the cluster does not already exist:
+```bash
+kind create cluster --name taskflow --config k8s/kind-config.yaml
+```
+Verify cluster context:
+```bash
+kubectl cluster-info --context kind-taskflow
+kubectl get nodes
 ```
 
-Build and start all services:
-
+### 2. Build the application images
+Ensure the tag names match your Kubernetes Deployment manifests:
 ```bash
-docker compose -f docker-compose.yaml up --build -d
+docker build -t taskflow-backend:dev ./backend
+docker build -t taskflow-frontend:dev ./frontend
 ```
 
-Check service status:
-
+### 3. Load images into kind
+Locally built images must be loaded into the `kind` cluster environment to pull successfully without a remote registry:
 ```bash
-docker compose -f docker-compose.yaml ps
+kind load docker-image taskflow-backend:dev --name taskflow
+kind load docker-image taskflow-frontend:dev --name taskflow
 ```
 
-Expected services:
+### 4. Configure database credentials
+The database credentials must match the configuration expected by the PostgreSQL StatefulSet and backend Deployment. Create or update `k8s/database/secret.yaml` locally before running deployment pipelines.
 
-- `frontend`: serves the application on host port 8081.
-- `backend`: provides the Flask API on the internal Compose network.
-- `db`: runs PostgreSQL 16 on the internal Compose network.
-
-Open the application:
-
-http://localhost:8081
-
-Port 8081 is used to avoid conflicts with services such as Jenkins that
-may already occupy port 8080.
-
-## Verify the deployment
-
-Check backend health through the frontend reverse proxy:
-
+Verify file existence:
 ```bash
-curl -i http://localhost:8081/api/health
+ls -l k8s/database/secret.yaml
+```
+*Note: Excluding the local file from Git does not automatically create the Secret in the cluster. It must exist inside Kubernetes before dependent workloads start.*
+
+### 5. Validate and deploy the manifests
+Render configuration changes:
+```bash
+kubectl kustomize k8s
+```
+Dry-run manifest validation against the live cluster API:
+```bash
+kubectl apply --dry-run=server -k k8s
+```
+Deploy the configurations:
+```bash
+kubectl apply -k k8s
 ```
 
-Expected HTTP status: `200 OK`.
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "database": "connected"
-}
+### 6. Check deployment status
+```bash
+kubectl get pods -n taskflow
+kubectl get services -n taskflow
+kubectl get pvc -n taskflow
+```
+Monitor rollout health:
+```bash
+kubectl rollout status deployment -n taskflow
 ```
 
-List tasks:
+---
 
+## 🔍 Verify the Application
+
+### Accessing the Frontend
+Forward the host machine interface port to the internal Kubernetes frontend service:
 ```bash
-curl -i http://localhost:8081/api/tasks
+kubectl port-forward -n taskflow service/taskflow-frontend 8082:80
+```
+* Keep this terminal open while using the application.
+* Visit the UI at: [http://localhost:8082](http://localhost:8082)
+
+*(If your service name differs, identify it using `kubectl get services -n taskflow`)*
+
+### Verifying the Backend API Directly
+In a secondary terminal workspace, forward port `5000`:
+```bash
+kubectl port-forward -n taskflow service/taskflow-backend 5000:5000
+```
+Test backend routing availability using `curl`:
+```bash
+curl -i http://localhost:5000/api/health
+curl -i http://localhost:5000/api/tasks
 ```
 
-Create a task:
+---
 
+## 💾 Database Persistence and Backups
+### Docker Compose
+
+PostgreSQL stores its data in the named Docker volume taskflow_pgdata, mounted inside the database container.
+
+Check database readiness:
 ```bash
-curl -i -X POST http://localhost:8081/api/tasks \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Learn Docker Compose"}'
-```
-
-Complete a task by replacing `<TASK_ID>` with the returned ID:
-
-```bash
-curl -i -X PATCH http://localhost:8081/api/tasks/<TASK_ID> \
-  -H 'Content-Type: application/json' \
-  -d '{"completed":true}'
-```
-
-Delete a task:
-
-```bash
-curl -i -X DELETE http://localhost:8081/api/tasks/<TASK_ID>
-```
-
-A successful delete returns HTTP `204 No Content`.
-
-## Database and persistence
-
-PostgreSQL stores its live database files in the named Docker volume
-`taskflow_pgdata`, mounted at `/var/lib/postgresql/data` inside the
-database container.
-
-The `database/` directory contains database documentation and scripts;
-it is not the live database storage directory.
-
-Inspect database readiness:
-
-```bash
-docker compose -f docker-compose.yaml exec db \
+docker compose -f docker-compose.yml exec db \
   pg_isready -U taskflow -d taskflow
 ```
 
 List database tables:
-
 ```bash
-docker compose -f docker-compose.yaml exec db \
+docker compose -f docker-compose.yml exec db \
   psql -U taskflow -d taskflow -c '\dt'
 ```
 
-Inspect the task records:
-
+Inspect task records:
 ```bash
-docker compose -f docker-compose.yaml exec db \
+docker compose -f docker-compose.yml exec db \
   psql -U taskflow -d taskflow \
   -c 'SELECT id, title, completed FROM task ORDER BY id;'
 ```
 
-### Restart services
+These commands assume the database service, database, and role are named db, taskflow, and taskflow, respectively. Adjust them if your configuration differs.
 
+## Kubernetes
+
+Inspect PostgreSQL and its storage:
 ```bash
-docker compose -f docker-compose.yaml restart
+kubectl get statefulset,pods,pvc -n taskflow
+kubectl logs -n taskflow statefulset/taskflow-db
 ```
 
-### Stop services without deleting database data
+The StatefulSet and PersistentVolumeClaim configuration determine how database storage is attached and retained. Deleting a Pod is not the same as deleting its persistent storage.
 
-```bash
-docker compose -f docker-compose.yaml down
-```
+## Back up the Docker Compose database
 
-The named database volume is retained.
-
-**Warning:** `docker compose down -v` removes Compose-managed named
-volumes. Do not use it when you need to preserve your database.
-
-### Back up the database
-
-Create a logical backup outside the repository:
-
+Create a backup directory outside the repository:
 ```bash
 mkdir -p "$HOME/taskflow-backups"
+```
 
-docker compose -f docker-compose.yaml exec -T db \
+Create a logical backup:
+```bash
+docker compose -f docker-compose.yml exec -T db \
   pg_dump -U taskflow -d taskflow \
   > "$HOME/taskflow-backups/taskflow-$(date +%F-%H%M%S).sql"
 ```
 
-Check that the backup file is nonempty:
-
+Check the resulting file:
 ```bash
 ls -lh "$HOME"/taskflow-backups/
 ```
 
-Test backup and restore procedures before relying on backups for recovery.
+Test backup and restore procedures before relying on them for recovery. Protect backup files because they may contain application data.
 
-## Logs and troubleshooting
+## 🧪 Testing
+Backend tests
 
-View logs for all services:
-
-```bash
-docker compose -f docker-compose.yaml logs --tail=100
-```
-
-Follow backend logs:
-
-```bash
-docker compose -f docker-compose.yaml logs -f backend
-```
-
-Check the database health:
-
-```bash
-docker compose -f docker-compose.yaml exec db \
-  pg_isready -U taskflow -d taskflow
-```
-
-Rebuild after changing application code or Dockerfiles:
-
-```bash
-docker compose -f docker-compose.yaml up --build -d
-```
-
-If port 8081 is already in use, change the frontend port mapping in
-`docker-compose.yaml` and use the new port in your browser and curl tests.
-
-If the API reports a database connection failure, inspect backend and
-database logs before changing credentials or deleting volumes.
-
-## Local development
-
-### Backend
-
-From the `backend/` directory, create and activate a Python virtual
-environment using the appropriate commands for your operating system.
-Install the packages from `requirements.txt` and run the Flask application.
-
-The local backend defaults to SQLite if `DATABASE_URL` is not set.
-Configure `DATABASE_URL` when you want local development to use PostgreSQL.
-
-### Frontend
-
-From the `frontend/` directory:
-
-```bash
-npm ci
-npm run dev
-```
-
-The frontend `.env` can configure `VITE_API_URL` for local development.
-For the containerized deployment, the empty Vite API URL uses relative
-`/api/` requests, which Nginx forwards to the backend.
-
-## Testing
-
-Run backend tests locally after installing the backend requirements:
-
+From the project root:
 ```bash
 cd backend
 python -m pytest -v
 ```
 
-Run the application through Compose and verify health and CRUD operations
-using the commands in the deployment section.
+Install the backend dependencies from requirements.txt in an appropriate Python virtual environment before running the tests.
 
-## Security notes
+Container and Kubernetes verification
 
-- The password in the Compose configuration is for local development only.
-- Do not commit real credentials, private keys, local `.env` files, or
-  database backups.
-- Use managed secrets or environment-specific configuration for deployed
-  environments.
-- PostgreSQL is not published on a host port by this Compose configuration.
-- Flask's debug development server is not used by the containerized
-  backend; Gunicorn serves the application.
+For Docker Compose:
+```bash
+docker compose -f docker-compose.yml ps
+docker compose -f docker-compose.yml logs --tail=100
+```
 
-## Current scope and roadmap
+For Kubernetes:
+```bash
+kubectl get pods -n taskflow
+kubectl get services -n taskflow
+kubectl get pvc -n taskflow
+kubectl kustomize k8s
+kubectl apply --dry-run=server -k k8s
+```
 
-Current scope:
+A successful dry run validates the manifests against the current cluster API, but does not prove that every application component will start successfully.
 
-- Full-stack task CRUD operations.
-- Containerized frontend, backend, and database.
-- Compose health checks and persistent storage.
-- Basic backend automated tests.
+## 🔧 Troubleshooting
+Inspect Kubernetes Pods
+```bash
+kubectl get pods -n taskflow
+kubectl describe pod -n taskflow <POD_NAME>
+```
 
-Planned improvements:
+Replace <POD_NAME> with the actual Pod name.
 
-- CI/CD with GitHub Actions.
-- Container image scanning with Trivy.
-- Image publishing to GitHub Container Registry.
-- Database schema migrations with Alembic.
-- Kubernetes deployment manifests.
-- AWS EKS deployment, monitoring, and operational documentation.
+Inspect backend logs
+```bash
+kubectl logs -n taskflow deployment/taskflow-backend
+```
+Inspect PostgreSQL logs
+```bash
+kubectl logs -n taskflow statefulset/taskflow-db
+```
 
-## License
+Adjust resource names if your manifests use different names.
 
-Choose and add an appropriate open-source license before publishing this
-project for reuse.
+Check Services and endpoints
+```bash
+kubectl get services -n taskflow
+kubectl get endpoints -n taskflow
+```
+
+If the API is unreachable, verify Service ports, target ports, Pod labels, readiness, and Nginx proxy configuration.
+
+Rebuild and reload changed images
+
+After changing application code or Dockerfiles:
+
+```bash
+docker build -t taskflow-backend:dev ./backend
+docker build -t taskflow-frontend:dev ./frontend
+
+kind load docker-image taskflow-backend:dev --name taskflow
+kind load docker-image taskflow-frontend:dev --name taskflow
+```
+
+Ensure Deployment image tags and image pull policies match your local kind workflow. If a running Pod does not pick up a changed image with the same tag, trigger an appropriate rollout or use a distinct image tag.
+
+## Port-forwarding issues
+
+If a local port is already occupied, use another local port:
+
+```bash
+kubectl port-forward -n taskflow service/taskflow-frontend 8083:80
+```
+
+Then open http://localhost:8083
+
+## 🔐 Security
+- Never commit passwords, tokens, private keys, production credentials, or sensitive .env files.
+- Keep local Kubernetes Secret files out of Git.
+- Kubernetes Secret base64 encoding is not encryption.
+- Review Git history for credentials before publishing the repository.
+- Rotate any credential that has been exposed or committed.
+- Use a suitable secret-management system and least-privilege access controls for production.
+- Avoid unnecessarily exposing PostgreSQL outside the cluster or Compose network.
+- Never use development credentials in production.
+- Keep container base images and application dependencies updated.
+- Consider container image scanning, vulnerability management, and automated testing in CI.
+- kind is a local development and learning environment, not a production hosting platform.
+## 📍 Roadmap
+## Completed baseline
+- Build and run the frontend, backend, and PostgreSQL containers.
+- Orchestrate the application using Docker Compose.
+- Implement task CRUD endpoints and backend tests.
+- Deploy frontend and backend workloads to kind.
+- Configure PostgreSQL using a StatefulSet and persistent storage.
+- Configure Kubernetes Services and application health checks.
+- Verify backend health and task retrieval.
+- Validate Kubernetes manifests using Kustomize and server-side dry run.
+## Planned improvements
+- Finalize repository documentation and secret exclusions.
+- Review Git history and safely publish the Kubernetes baseline.
+- Add GitHub Actions for automated tests and frontend/backend image builds.
+- Publish versioned images to GitHub Container Registry (GHCR).
+- Automate deployment updates using a controlled image-tagging strategy.
+- Introduce Argo CD for GitOps-based deployment.
+- Add database migrations with Alembic.
+- Improve observability, container scanning, and deployment security.
+- Explore deployment to AWS EKS.
+
+
+## 📝 License
+
+No license has been specified yet. Add an appropriate open-source license before granting others permission to reuse, modify, or distribute the project.
