@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jarkalrohan-bit/TaskFlow.gitkubectl --context kind-taskflow apply -f argocd/application.yaml
+    repoURL: https://github.com/jarkalrohan-bit/TaskFlow.git
     targetRevision: main
     path: k8s
   destination:
