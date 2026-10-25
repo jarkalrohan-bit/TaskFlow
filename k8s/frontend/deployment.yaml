@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: taskflow-frontend:dev
+          image: rohanjarkal/taskflow-frontend:dev
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
