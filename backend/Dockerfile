@@ -1,3 +1,41 @@
+
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Apply available Debian security updates
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+
+RUN python -m pip install --no-cache-dir -r requirements.txt && \
+    python -m pip install --no-cache-dir "setuptools>=78.1.1"
+
+# Copy backend application
+COPY . .
+
+# Run application as non-root
+RUN useradd --system --create-home --uid 10001 appuser && \
+    chown -R appuser:appuser /app
+
+USER 10001
+
+EXPOSE 5000
+
+CMD ["sh", "-c", "python wait_for_db.py && python init_db.py && exec gunicorn --bind 0.0.0.0:5000 --workers 2 --access-logfile - --error-logfile - 'app:create_app()'"]
+
+
+
+
+
 # FROM python:3.12-slim
 
 # ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -40,36 +78,36 @@
 # CMD ["sh", "-c", "python wait_for_db.py && python init_db.py && exec gunicorn --bind 0.0.0.0:5000 --workers 2 --access-logfile - --error-logfile - 'app:create_app()'"]
 
 
-FROM python:3.12-slim
+# FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# ENV PYTHONDONTWRITEBYTECODE=1 \
+#     PYTHONUNBUFFERED=1 \
+#     PIP_NO_CACHE_DIR=1
 
-# Install security updates and remove package metadata
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# # Install security updates and remove package metadata
+# RUN apt-get update && \
+#     apt-get upgrade -y && \
+#     apt-get install -y --no-install-recommends ca-certificates && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# WORKDIR /app
 
-# Install application dependencies
-COPY requirements.txt .
+# # Install application dependencies
+# COPY requirements.txt .
 
-RUN python -m pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# RUN python -m pip install --upgrade pip && \
+#     pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
-COPY . .
+# # Copy application source
+# COPY . .
 
-# Create non-root application user
-RUN useradd --system --create-home --uid 10001 appuser && \
-    chown -R appuser:appuser /app
+# # Create non-root application user
+# RUN useradd --system --create-home --uid 10001 appuser && \
+#     chown -R appuser:appuser /app
 
-USER 10001
+# USER 10001
 
-EXPOSE 5000
+# EXPOSE 5000
 
-CMD ["sh", "-c", "python wait_for_db.py && python init_db.py && exec gunicorn --bind 0.0.0.0:5000 --workers 2 --access-logfile - --error-logfile - 'app:create_app()'"]
+# CMD ["sh", "-c", "python wait_for_db.py && python init_db.py && exec gunicorn --bind 0.0.0.0:5000 --workers 2 --access-logfile - --error-logfile - 'app:create_app()'"]
