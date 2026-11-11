@@ -3,7 +3,7 @@ import os
 
 # Ensure app.py can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
-
+from app import create_app, db
 from app import create_app
 
 
@@ -11,10 +11,16 @@ from app import create_app
 # Helper Function (This was missing!)
 # ==========================================
 def get_test_app():
-    return create_app(test_config={
+    app = create_app(test_config={
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
     })
+    
+    # Create the tables inside the app context
+    with app.app_context():
+        db.create_all()
+        
+    return app
 
 
 # ==========================================
