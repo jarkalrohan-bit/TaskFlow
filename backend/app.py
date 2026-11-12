@@ -131,10 +131,18 @@ def create_app(test_config=None):
 
     return app
 
-
 app = create_app()
 
+# Create tables on startup (runs when Gunicorn imports this module)
+with app.app_context():
+    db.create_all()
+
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(host="127.0.0.1", port=5000, debug=True)
+    
+# app = create_app()
+
+# if __name__ == "__main__":
+#     with app.app_context():
+#         db.create_all()
+#     app.run(host="127.0.0.1", port=5000, debug=True)
