@@ -13,15 +13,58 @@ RUN pip install --no-cache-dir \
 # Runtime stage
 FROM python:3.12-slim-bookworm
 
+# 🔒 Apply security patches to Debian packages (fixes most Trivy findings)
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
+# Copy installed Python packages from builder
 COPY --from=builder /install /usr/local
 
-COPY . .
+# Create a non-root user (fixes Trivy "run as root" finding)
+RUN useradd --create-home --shell /bin/bash appuser \
+    && chown -R appuser:appuser /app
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 5000
 
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+
+
+
+
+
+# # Build stage
+# FROM python:3.12-slim-bookworm AS builder
+
+# WORKDIR /app
+
+# COPY requirements.txt .
+
+# RUN pip install --no-cache-dir \
+#     --prefix=/install \
+#     -r requirements.txt
+
+
+# # Runtime stage
+# FROM python:3.12-slim-bookworm
+
+# WORKDIR /app
+
+# COPY --from=builder /install /usr/local
+
+# COPY . .
+
+# EXPOSE 5000
+
+# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
 # FROM python:3.12-slim-bookworm
 
 # ENV PYTHONDONTWRITEBYTECODE=1 \
